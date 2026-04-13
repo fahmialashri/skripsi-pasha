@@ -10,6 +10,11 @@ use App\Http\Controllers\StudentDosenController;
 use App\Http\Controllers\AdminDosenController;
 use App\Http\Controllers\StudentProfileController;
 
+
+Route::get('/', function () {
+    return redirect()->route('login');
+});
+
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/dashboard', function () {
