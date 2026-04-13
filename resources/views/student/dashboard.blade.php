@@ -213,7 +213,7 @@
                 Jika Anda memiliki kendala teknis atau pertanyaan mengenai skripsi, silakan hubungi pusat bantuan.
             </p>
 
-            <a href="https://wa.me/6281234567890?text=Halo%20Pusat%20Bantuan,%20saya%20butuh%20bantuan%20terkait%20sistem..." 
+            <a href="https://wa.me/6287896314494?text=Halo%20Pusat%20Bantuan,%20saya%20butuh%20bantuan%20terkait%20sistem..." 
             target="_blank" 
             class="block w-full">
                 <button type="button" class="bg-[#1C252E] text-white w-full py-4 rounded-[12px] flex items-center justify-center gap-3 font-bold text-sm hover:bg-black transition-all shadow-lg relative z-10">
