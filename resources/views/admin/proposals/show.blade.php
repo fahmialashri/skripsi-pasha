@@ -307,22 +307,61 @@
                 {{-- LAMPIRAN --}}
                 <div class="mt-6">
                     <div class="text-[10px] font-black tracking-widest text-[#919EAB] uppercase">Lampiran Bukti KRS</div>
-                    <div class="mt-3 border border-[#EEF0F3] rounded-[16px] px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-[#F9FAFB] transition-colors">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-11 h-11 rounded-xl bg-[#FFE8E8] flex items-center justify-center shrink-0">
-                                <svg class="w-6 h-6 text-[#E11D48]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                </svg>
+
+                    <div class="mt-3 border border-[#EEF0F3] rounded-[16px] px-4 py-3.5 hover:bg-[#F9FAFB] transition-colors">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-11 h-11 rounded-xl bg-[#FFE8E8] flex items-center justify-center shrink-0">
+                                    <svg class="w-6 h-6 text-[#E11D48]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-[12px] font-black text-[#212B36] truncate">
+                                        {{ $proposal->krs_file ? basename($proposal->krs_file) : 'Belum ada file' }}
+                                    </div>
+                                    <div class="text-[11px] text-[#919EAB] font-bold uppercase">
+                                        {{ $isPdf ? 'PDF DOCUMENT' : ($isImage ? 'IMAGE FILE' : 'DOCUMENT FILE') }}
+                                    </div>
+                                </div>
                             </div>
-                            <div class="min-w-0">
-                                <div class="text-[12px] font-black text-[#212B36] truncate">{{ $proposal->krs_file ? basename($proposal->krs_file) : 'Belum ada file' }}</div>
-                                <div class="text-[11px] text-[#919EAB] font-bold">DOKUMEN_KRS.PDF</div>
-                            </div>
+
+                            @if($krsPreviewUrl)
+                                <a href="{{ $krsPreviewUrl }}" target="_blank" class="px-4 py-2 rounded-lg bg-[#F4F6F8] text-[11px] font-black text-[#1C252E] hover:bg-[#1C252E] hover:text-white transition-all uppercase tracking-wider">
+                                    Pratinjau
+                                </a>
+                            @endif
                         </div>
-                        @if($proposal->krs_file)
-                            <a href="{{ asset('storage/'.$proposal->krs_file) }}" target="_blank" class="px-4 py-2 rounded-lg bg-[#F4F6F8] text-[11px] font-black text-[#1C252E] hover:bg-[#1C252E] hover:text-white transition-all uppercase tracking-wider">
-                                Pratinjau
-                            </a>
+
+                        @if($krsPreviewUrl)
+                            <div class="mt-4">
+                                @if($isImage)
+                                    <div class="rounded-[16px] overflow-hidden border border-[#EEF0F3] bg-[#FBFCFE]">
+                                        <img
+                                            src="{{ $krsPreviewUrl }}"
+                                            alt="Preview KRS"
+                                            class="w-full max-h-[520px] object-contain bg-white"
+                                        >
+                                    </div>
+                                @elseif($isPdf)
+                                    <div class="rounded-[16px] overflow-hidden border border-[#EEF0F3] bg-white">
+                                        <iframe
+                                            src="{{ $krsPreviewUrl }}"
+                                            width="100%"
+                                            height="520"
+                                            class="w-full"
+                                        ></iframe>
+                                    </div>
+                                @else
+                                    <div class="rounded-[14px] bg-slate-50 border border-slate-200 px-4 py-3 text-[12px] font-medium text-slate-600">
+                                        Preview langsung tidak tersedia untuk tipe file ini. Gunakan tombol <b>Pratinjau</b> untuk membuka file.
+                                    </div>
+                                @endif
+                            </div>
+                        @else
+                            <div class="mt-4 rounded-[14px] bg-amber-50 border border-amber-200 px-4 py-3 text-[12px] font-bold text-amber-700">
+                                File KRS tidak tersedia atau link preview gagal dibuat.
+                            </div>
                         @endif
                     </div>
                 </div>
