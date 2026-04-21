@@ -44,7 +44,8 @@
                         name="student_name"
                         value="{{ old('student_name', $user->name ?? '') }}"
                         required
-                        class="mt-1.5 w-full rounded-[12px] border border-[#E6E8EC] bg-[#F9FAFB] px-4 py-3 text-[13px] font-medium text-[#212B36] focus:bg-white focus:ring-2 focus:ring-[#DCE6FF] focus:border-[#007BFF] outline-none transition-all"
+                        readonly
+                        class="mt-1.5 w-full rounded-[12px] border border-[#E6E8EC] bg-[#F1F3F5] px-4 py-3 text-[13px] font-medium text-[#637381] cursor-not-allowed outline-none"
                     />
                     @error('student_name')
                         <p class="text-[11px] text-red-500 mt-1 ml-1">{{ $message }}</p>
@@ -61,8 +62,8 @@
                         value="{{ old('student_id', $user->student_id ?? '') }}"
                         placeholder="Contoh: 140810..."
                         required
-                        class="mt-1.5 w-full rounded-[12px] border border-[#E6E8EC] bg-[#F9FAFB] px-4 py-3 text-[13px] font-medium text-[#212B36] focus:bg-white focus:ring-2 focus:ring-[#DCE6FF] outline-none transition-all"
                         readonly
+                        class="mt-1.5 w-full rounded-[12px] border border-[#E6E8EC] bg-[#F1F3F5] px-4 py-3 text-[13px] font-medium text-[#637381] cursor-not-allowed outline-none"
                     />
                     @error('student_id')
                         <p class="text-[11px] text-red-500 mt-1 ml-1">{{ $message }}</p>
@@ -125,13 +126,19 @@
                     <label class="text-[12px] font-bold text-[#212B36] ml-1">
                         Judul Skripsi (Tentatif) <span class="text-red-500">*</span>
                     </label>
-                    <input
+                    <textarea
+                        id="titleInput"
                         name="title"
-                        value="{{ old('title') }}"
-                        placeholder="Masukkan usulan judul skripsi"
+                        rows="4"
+                        placeholder="Masukkan usulan judul skripsi (maksimal 14 kata)"
                         required
-                        class="mt-1.5 w-full rounded-[12px] border border-[#E6E8EC] bg-[#F9FAFB] px-4 py-3 text-[13px] font-medium text-[#212B36] focus:bg-white focus:ring-2 focus:ring-[#DCE6FF] outline-none transition-all"
-                    />
+                        class="mt-1.5 w-full rounded-[12px] border border-[#E6E8EC] bg-[#F9FAFB] px-4 py-3 text-[13px] font-medium text-[#212B36] focus:bg-white focus:ring-2 focus:ring-[#DCE6FF] outline-none transition-all resize-none"
+                    >{{ old('title') }}</textarea>
+
+                    <div id="titleCounter" class="text-[11px] text-[#637381] mt-1 ml-1">
+                        0 / 14 kata
+                    </div>
+
                     @error('title')
                         <p class="text-[11px] text-red-500 mt-1 ml-1">{{ $message }}</p>
                     @enderror
@@ -256,6 +263,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('proposalForm');
     const topicSelect = document.getElementById('topic_select');
     const dosenSelect = document.getElementById('dosen_select');
+    const titleInput = document.getElementById('titleInput');
+    const titleCounter = document.getElementById('titleCounter');
+
+    function countWords(text) {
+        return text.trim().split(/\s+/).filter(Boolean).length;
+    }
+
+    function updateTitleCounter() {
+        const count = countWords(titleInput.value);
+        titleCounter.textContent = `${count} / 14 kata`;
+
+        if (count >= 14) {
+            titleCounter.classList.add('text-red-500');
+            titleCounter.classList.remove('text-[#637381]');
+        } else {
+            titleCounter.classList.remove('text-red-500');
+            titleCounter.classList.add('text-[#637381]');
+        }
+    }
+
+    titleInput.addEventListener('input', function () {
+        let words = this.value.trim().split(/\s+/).filter(Boolean);
+
+        if (words.length > 14) {
+            words = words.slice(0, 14);
+            this.value = words.join(' ');
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Maksimal 14 Kata',
+                text: 'Judul skripsi hanya boleh maksimal 14 kata.',
+                confirmButtonColor: '#1C252E',
+            });
+        }
+
+        updateTitleCounter();
+    });
+
+    updateTitleCounter();
 
     // --- 0) LOGIK AUTO-LOAD DOSEN JIKA ADA TOPIC TERPILIH (Auto-Fill) ---
     async function loadDosens(topicId, selectedId = null) {
@@ -373,6 +419,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!title.value.trim()) {
             Swal.fire({ icon: 'warning', title: 'Belum Lengkap', text: 'Judul skripsi wajib diisi.', confirmButtonColor: '#1C252E' });
+            return;
+        }
+
+        const wordCount = countWords(title.value);
+        if (wordCount > 14) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Judul Terlalu Panjang',
+                text: 'Judul maksimal hanya 14 kata.',
+                confirmButtonColor: '#1C252E'
+            });
             return;
         }
 

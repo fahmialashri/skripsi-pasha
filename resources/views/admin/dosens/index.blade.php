@@ -13,7 +13,7 @@
     </div>
   </div>
 
-  {{-- ALERT SECTION (Hanya Alert yang pakai animasi agar terlihat interaktif) --}}
+  {{-- ALERT SECTION --}}
   <div class="space-y-3 mb-6">
     @if(session('success'))
       <div id="alert-success" class="flex items-center gap-3 bg-[#EBFBEE] text-[#118D57] border border-[#CFF7D6] px-4 py-3.5 rounded-[14px] shadow-sm animate__animated animate__fadeInDown">
@@ -100,6 +100,7 @@
         <thead class="bg-[#FBFCFE] border-b border-[#EEF0F3]">
           <tr class="text-[11px] font-black uppercase tracking-widest text-[#919EAB]">
             <th class="px-5 py-3">Dosen</th>
+            <th class="px-5 py-3">Status</th>
             <th class="px-5 py-3">Kuota</th>
             <th class="px-5 py-3">Expertise</th>
             <th class="px-5 py-3 text-right">Aksi</th>
@@ -108,52 +109,126 @@
         <tbody class="divide-y divide-[#EEF0F3]">
           @forelse($dosens as $d)
             @php
-              $quota = (int)($d->quota ?? 0);
-              $used  = (int)($d->assigned_count ?? 0); 
-              $left  = max(0, $quota - $used);
-              $full  = $quota > 0 && $used >= $quota;
+              $quota   = (int)($d->quota ?? 0);
+              $used    = (int)($d->assigned_count ?? 0);
+              $left    = max(0, $quota - $used);
+              $full    = $quota > 0 && $used >= $quota;
+              $percent = $quota > 0 ? min(100, round(($used / $quota) * 100)) : 0;
             @endphp
+
             <tr class="hover:bg-[#F9FAFB] transition-colors">
+              {{-- DOSEN --}}
               <td class="px-5 py-4">
                 <div class="font-extrabold text-[13px] text-[#1C252E]">{{ $d->name }}</div>
                 <div class="text-[12px] text-[#637381] font-bold mt-0.5">{{ $d->title ?? 'Dosen' }}</div>
-                <div class="mt-2 flex items-center gap-2">
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase {{ $full ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600' }}">
-                    {{ $full ? 'Penuh' : 'Tersedia' }}
+
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase {{ $full ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200' }}">
+                    {{ $full ? 'Kuota Habis' : 'Masih Tersedia' }}
                   </span>
-                  <span class="text-[11px] font-bold text-[#919EAB]">Sisa: {{ $left }}/{{ $quota }}</span>
+
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-50 text-slate-700 border border-slate-200">
+                    Terpakai: {{ $used }}/{{ $quota }}
+                  </span>
                 </div>
               </td>
 
-              <td class="px-5 py-4 w-[120px]">
+              {{-- STATUS --}}
+              <td class="px-5 py-4 min-w-[180px]">
+                <div class="space-y-2">
+                  <div>
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-black
+                      {{ $full ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' }}">
+                      <span class="w-2 h-2 rounded-full {{ $full ? 'bg-rose-500' : 'bg-emerald-500' }}"></span>
+                      {{ $full ? 'Penuh' : 'Tersedia' }}
+                    </span>
+                  </div>
+
+                  <div class="text-[11px] font-bold {{ $full ? 'text-rose-600' : 'text-[#637381]' }}">
+                    {{ $full ? 'Kuota dosen sudah habis' : 'Sisa kuota masih tersedia' }}
+                  </div>
+
+                  <div class="text-[11px] font-extrabold text-[#1C252E]">
+                    Sisa: {{ $left }} kuota
+                  </div>
+                </div>
+              </td>
+
+              {{-- KUOTA --}}
+              <td class="px-5 py-4 w-[240px]">
                 <form id="form-{{ $d->id }}" method="POST" action="{{ route('admin.dosens.update', $d) }}">
-                  @csrf @method('PUT')
-                  <input type="number" name="quota" value="{{ old('quota_'.$d->id, $d->quota) }}" class="w-full rounded-lg border border-[#E6E8EC] px-2 py-1.5 text-[12px] font-black focus:ring-2 focus:ring-[#DCE6FF] outline-none" />
-                  <input type="hidden" name="expertise" value="{{ old('expertise_'.$d->id, $d->expertise) }}" data-expertise-hidden="{{ $d->id }}"/>
-                  <input type="hidden" name="name" value="{{ $d->name }}"/>
-                  <input type="hidden" name="title" value="{{ $d->title }}"/>
+                  @csrf
+                  @method('PUT')
+
+                  <input
+                    type="number"
+                    min="0"
+                    name="quota"
+                    value="{{ old('quota_'.$d->id, $d->quota) }}"
+                    class="w-full rounded-lg border px-3 py-2 text-[12px] font-black outline-none focus:ring-2
+                      {{ $full
+                        ? 'border-rose-300 bg-rose-50 text-rose-700 focus:ring-rose-100'
+                        : 'border-[#E6E8EC] bg-white text-[#1C252E] focus:ring-[#DCE6FF]' }}"
+                  />
+
+                  <div class="mt-3">
+                    <div class="flex items-center justify-between text-[10px] font-bold mb-1">
+                      <span class="text-[#637381]">Pemakaian Kuota</span>
+                      <span class="{{ $full ? 'text-rose-600' : 'text-[#007BFF]' }}">{{ $percent }}%</span>
+                    </div>
+
+                    <div class="w-full h-2.5 rounded-full bg-[#E9EEF5] overflow-hidden">
+                      <div
+                        class="h-2.5 rounded-full transition-all duration-300 {{ $full ? 'bg-rose-500' : 'bg-[#007BFF]' }}"
+                        style="width: {{ $percent }}%">
+                      </div>
+                    </div>
+
+                    <div class="mt-2 text-[10px] font-bold text-[#919EAB]">
+                      Verified terpakai: {{ $used }} dari {{ $quota }} kuota
+                    </div>
+
+                    <div class="mt-1 text-[11px] font-black {{ $full ? 'text-rose-600' : 'text-emerald-600' }}">
+                      {{ $full ? 'Kuota habis' : 'Sisa '.$left.' kuota' }}
+                    </div>
+                  </div>
+
+                  <input type="hidden" name="expertise" value="{{ old('expertise_'.$d->id, $d->expertise) }}" data-expertise-hidden="{{ $d->id }}" />
+                  <input type="hidden" name="name" value="{{ $d->name }}" />
+                  <input type="hidden" name="title" value="{{ $d->title }}" />
                 </form>
               </td>
 
+              {{-- EXPERTISE --}}
               <td class="px-5 py-4">
-                <input type="text" value="{{ old('expertise_'.$d->id, $d->expertise) }}" placeholder="Expertise..." 
-                  class="w-full rounded-lg border border-[#E6E8EC] px-3 py-1.5 text-[12px] font-medium focus:ring-2 focus:ring-[#DCE6FF] outline-none transition-all"
-                  oninput="document.querySelector('[data-expertise-hidden={{ $d->id }}]').value=this.value" />
+                <input
+                  type="text"
+                  value="{{ old('expertise_'.$d->id, $d->expertise) }}"
+                  placeholder="Expertise..."
+                  class="w-full rounded-lg border border-[#E6E8EC] px-3 py-2 text-[12px] font-medium focus:ring-2 focus:ring-[#DCE6FF] outline-none transition-all"
+                  oninput="document.querySelector('[data-expertise-hidden={{ $d->id }}]').value=this.value"
+                />
               </td>
 
+              {{-- AKSI --}}
               <td class="px-5 py-4 text-right">
                 <div class="flex justify-end gap-2">
-                  <button type="submit" form="form-{{ $d->id }}" class="px-4 py-2 rounded-lg bg-[#007BFF] text-white text-[11px] font-black hover:opacity-90 transition shadow-sm active:scale-95">Simpan</button>
+                  <button type="submit" form="form-{{ $d->id }}" class="px-4 py-2 rounded-lg bg-[#007BFF] text-white text-[11px] font-black hover:opacity-90 transition shadow-sm active:scale-95">
+                    Simpan
+                  </button>
                   <form method="POST" action="{{ route('admin.dosens.destroy', $d) }}" onsubmit="return confirm('Hapus {{ $d->name }}?')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="px-4 py-2 rounded-lg bg-white border border-[#E6E8EC] text-rose-600 text-[11px] font-black hover:bg-rose-50 transition active:scale-95">Hapus</button>
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-white border border-[#E6E8EC] text-rose-600 text-[11px] font-black hover:bg-rose-50 transition active:scale-95">
+                      Hapus
+                    </button>
                   </form>
                 </div>
               </td>
             </tr>
           @empty
             <tr>
-              <td colspan="4" class="py-10 text-center text-[#637381] italic">Tidak ada data dosen.</td>
+              <td colspan="5" class="py-10 text-center text-[#637381] italic">Tidak ada data dosen.</td>
             </tr>
           @endforelse
         </tbody>
@@ -167,14 +242,14 @@
 </div>
 
 <script>
-    setTimeout(function() {
-        const alerts = document.querySelectorAll('.animate__animated');
-        alerts.forEach(alert => {
-            alert.style.transition = "all 0.6s ease";
-            alert.style.opacity = "0";
-            alert.style.transform = "translateY(-10px)";
-            setTimeout(() => alert.remove(), 600);
-        });
-    }, 4000);
+  setTimeout(function() {
+    const alerts = document.querySelectorAll('.animate__animated');
+    alerts.forEach(alert => {
+      alert.style.transition = "all 0.6s ease";
+      alert.style.opacity = "0";
+      alert.style.transform = "translateY(-10px)";
+      setTimeout(() => alert.remove(), 600);
+    });
+  }, 4000);
 </script>
 @endsection

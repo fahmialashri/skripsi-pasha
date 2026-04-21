@@ -8,7 +8,8 @@ use App\Models\Topic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class StudentProposalController extends Controller
 {
@@ -27,21 +28,21 @@ class StudentProposalController extends Controller
 
         if ($selectedDosenId) {
             $selectedDosen = Dosen::find($selectedDosenId);
-            
+
             if ($selectedDosen) {
                 foreach ($topics as $topic) {
                     if (Str::contains(Str::lower($selectedDosen->expertise), Str::lower($topic->name))) {
                         $autoTopicId = $topic->id;
-                        break; 
+                        break;
                     }
                 }
             }
         }
 
         return view('student.proposal.create', compact(
-            'user', 
-            'topics', 
-            'selectedDosen', 
+            'user',
+            'topics',
+            'selectedDosen',
             'autoTopicId'
         ));
     }
@@ -58,7 +59,6 @@ class StudentProposalController extends Controller
         $topic = Topic::findOrFail($request->topic_id);
         $keyword = trim($topic->name);
 
-        // 🔥 PERUBAHAN DI SINI (MySQL → PostgreSQL)
         $dosens = Dosen::query()
             ->where('expertise', 'ilike', '%' . $keyword . '%')
             ->orderBy('name')
@@ -68,7 +68,7 @@ class StudentProposalController extends Controller
     }
 
     /**
-     * Menyimpan data pengajuan ke database
+     * Menyimpan data pengajuan ke database + upload KRS ke Supabase Storage
      */
     public function store(Request $request)
     {
@@ -88,30 +88,80 @@ class StudentProposalController extends Controller
 
         $filePath = null;
 
-        if ($request->hasFile('krs_file')) {
-            $file = $request->file('krs_file');
-            
-            $fileName = 'krs_' . $validated['student_id'] . '_' . now()->format('YmdHis') . '.' . $file->getClientOriginalExtension();
-            
-            $filePath = $file->storeAs('krs', $fileName, 'public');
+        try {
+            if ($request->hasFile('krs_file')) {
+                $file = $request->file('krs_file');
+
+                $bucket = env('SUPABASE_BUCKET', 'krs');
+                $supabaseUrl = rtrim(env('SUPABASE_URL'), '/');
+                $supabaseKey = env('SUPABASE_KEY');
+
+                if (!$supabaseUrl || !$supabaseKey) {
+                    return back()->withErrors([
+                        'krs_file' => 'Konfigurasi Supabase belum lengkap.'
+                    ])->withInput();
+                }
+
+                $extension = $file->getClientOriginalExtension();
+                $safeStudentId = preg_replace('/[^A-Za-z0-9_\-]/', '_', $validated['student_id']);
+                $fileName = 'krs_' . $safeStudentId . '_' . now()->format('YmdHis') . '.' . $extension;
+
+                // Simpan dalam folder bucket, mis. 2026/04/nama_file.pdf
+                $objectPath = now()->format('Y/m') . '/' . $fileName;
+
+                $fileContent = file_get_contents($file->getRealPath());
+
+                $response = Http::withBody($fileContent, $file->getMimeType())
+                    ->withHeaders([
+                        'apikey' => $supabaseKey,
+                        'Authorization' => 'Bearer ' . $supabaseKey,
+                        'x-upsert' => 'false',
+                    ])
+                    ->post("{$supabaseUrl}/storage/v1/object/{$bucket}/{$objectPath}");
+
+                if ($response->failed()) {
+                    Log::error('Upload KRS ke Supabase gagal', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'student_id' => $validated['student_id'],
+                    ]);
+
+                    return back()->withErrors([
+                        'krs_file' => 'Upload file KRS gagal. Pastikan bucket dan policy Supabase sudah benar.'
+                    ])->withInput();
+                }
+
+                // Simpan path object untuk dipakai nanti saat generate signed URL
+                $filePath = $objectPath;
+            }
+
+            Proposal::create([
+                'student_user_id'     => $user->id,
+                'student_name'        => $validated['student_name'],
+                'student_id'          => $validated['student_id'],
+                'whatsapp'            => $validated['whatsapp'],
+                'title'               => $validated['title'],
+                'abstract'            => $validated['abstract'],
+                'topic_id'            => $validated['topic_id'],
+                'graduation_estimate' => $validated['graduation_estimate'],
+                'selected_dosen_id'   => $validated['selected_dosen_id'],
+                'status'              => 'pending',
+                'krs_file'            => $filePath,
+            ]);
+
+            return redirect()
+                ->route('student.dashboard')
+                ->with('success', 'Pengajuan dosen pembimbing berhasil dikirim! Silakan tunggu verifikasi admin.');
+        } catch (\Throwable $e) {
+            Log::error('Gagal menyimpan proposal mahasiswa', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'student_user_id' => $user?->id,
+            ]);
+
+            return back()->withErrors([
+                'general' => 'Terjadi kesalahan saat mengirim pengajuan. Silakan coba lagi.'
+            ])->withInput();
         }
-
-        Proposal::create([
-            'student_user_id'     => $user->id,
-            'student_name'        => $validated['student_name'],
-            'student_id'          => $validated['student_id'],
-            'whatsapp'            => $validated['whatsapp'],
-            'title'               => $validated['title'],
-            'abstract'            => $validated['abstract'],
-            'topic_id'            => $validated['topic_id'],
-            'graduation_estimate' => $validated['graduation_estimate'],
-            'selected_dosen_id'   => $validated['selected_dosen_id'],
-            'status'              => 'pending',
-            'krs_file'            => $filePath,
-        ]);
-
-        return redirect()
-            ->route('student.dashboard')
-            ->with('success', 'Pengajuan dosen pembimbing berhasil dikirim! Silakan tunggu verifikasi admin.');
     }
 }
